@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Bookmarks</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">✦</span>
+      <span class="brand-text">My Bookmarks</span>
+    </div>
+
+    <div class="search-wrap">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="searchInput" type="text" placeholder="북마크 검색 (제목, 주소, 메모)">
+    </div>
+
+    <div class="topbar-actions">
+      <button id="importBtn" class="btn btn-ghost" title="JSON 파일에서 가져오기">가져오기</button>
+      <button id="exportBtn" class="btn btn-ghost" title="JSON 파일로 내보내기">내보내기</button>
+      <input id="importFile" type="file" accept="application/json" hidden>
+      <button id="addBookmarkBtn" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+        북마크 추가
+      </button>
+    </div>
+  </header>
+
+  <div class="body">
+    <aside class="sidebar">
+      <div class="sidebar-title">카테고리</div>
+      <ul id="categoryList" class="category-list"></ul>
+      <button id="addCategoryBtn" class="add-category-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+        카테고리 추가
+      </button>
+    </aside>
+
+    <main class="content">
+      <div class="content-head">
+        <h1 id="activeCategoryTitle">전체</h1>
+        <span id="resultCount" class="result-count"></span>
+        <button id="categoryTitleEditBtn" class="icon-btn title-edit-btn" title="카테고리 수정" hidden></button>
+      </div>
+      <div id="grid" class="grid"></div>
+      <div id="emptyState" class="empty-state" hidden>
+        <p>아직 북마크가 없어요.</p>
+        <button class="btn btn-primary" id="emptyAddBtn">첫 북마크 추가하기</button>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Bookmark Add/Edit Modal -->
+<div id="bookmarkModal" class="modal-overlay" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="bookmarkModalTitle">북마크 추가</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="bookmarkForm" class="modal-body">
+      <input type="hidden" id="bookmarkId">
+      <label class="field">
+        <span>URL <em>*</em></span>
+        <input id="bookmarkUrl" type="text" placeholder="https://www.figma.com" required>
+      </label>
+      <label class="field">
+        <span>제목</span>
+        <input id="bookmarkTitle" type="text" placeholder="비워두면 주소에서 자동으로 채워요">
+      </label>
+      <label class="field">
+        <span>카테고리</span>
+        <select id="bookmarkCategory"></select>
+      </label>
+      <label class="field">
+        <span>커버 이미지 URL (선택)</span>
+        <input id="bookmarkImage" type="text" placeholder="비워두면 파비콘으로 자동 생성돼요">
+      </label>
+      <label class="field">
+        <span>메모 (선택)</span>
+        <textarea id="bookmarkNote" rows="2" placeholder="어디에 쓰는 사이트인지 메모"></textarea>
+      </label>
+      <div class="modal-actions">
+        <button type="button" id="deleteBookmarkBtn" class="btn btn-danger" hidden>삭제</button>
+        <div class="spacer"></div>
+        <button type="button" class="btn btn-ghost" data-close>취소</button>
+        <button type="submit" class="btn btn-primary">저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Category Add/Edit Modal -->
+<div id="categoryModal" class="modal-overlay" hidden>
+  <div class="modal modal-sm">
+    <div class="modal-head">
+      <h2 id="categoryModalTitle">카테고리 추가</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <form id="categoryForm" class="modal-body">
+      <input type="hidden" id="categoryId">
+      <label class="field">
+        <span>이름 <em>*</em></span>
+        <input id="categoryName" type="text" placeholder="예: 타이포그래피" required>
+      </label>
+      <div class="modal-actions">
+        <button type="button" id="deleteCategoryBtn" class="btn btn-danger" hidden>삭제</button>
+        <div class="spacer"></div>
+        <button type="button" class="btn btn-ghost" data-close>취소</button>
+        <button type="submit" class="btn btn-primary">저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

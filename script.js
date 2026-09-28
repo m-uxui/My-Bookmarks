@@ -293,7 +293,7 @@
     const data = {
       url,
       title: $('#bookmarkTitle').value.trim(),
-      category_id: $('#bookmarkCategory').value,
+      category_id: $('#bookmarkCategory').value || null,
       image: $('#bookmarkImage').value.trim(),
       note: $('#bookmarkNote').value.trim(),
     };
@@ -465,7 +465,7 @@
         const baseOrder = overwrite || !bookmarks.length ? 0 : Math.min(...bookmarks.map(b => b.order ?? 0)) - 1000;
         let i = 0;
         for (const b of data.bookmarks) {
-          const category_id = idMap[b.categoryId] || b.categoryId;
+          const category_id = idMap[b.categoryId] || null;
           await supabase.from('bookmarks').insert({
             url: b.url,
             title: b.title || '',

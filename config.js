@@ -4,3 +4,9 @@
 // policies in schema.sql, not keeping this secret.
 window.SUPABASE_URL = 'https://pqebiduhcoaofqptsxic.supabase.co';
 window.SUPABASE_ANON_KEY = 'sb_publishable_s4ukQO-5NHZPOU5695eMrA_nlNVkM4v';
+
+// Kakao Developers → 앱 설정 → 요약 정보 → REST API 키.
+// This is a public client id (same role as an OAuth client_id) — safe to
+// commit. The Client Secret is NOT here; it lives only in Vercel's
+// KAKAO_CLIENT_SECRET environment variable, read by api/kakao-exchange.js.
+window.KAKAO_REST_API_KEY = 'ee8bc1a6ee4105fdc3463be0928cea9a';

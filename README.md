@@ -24,11 +24,38 @@ Security, not just the UI).
 
 ## 3. Kakao login
 
-1. In **Supabase → Authentication → Sign In / Providers**, click **Kakao** and toggle it on — copy its **Callback URL**.
-2. In [Kakao Developers](https://developers.kakao.com/) → **내 애플리케이션 → 애플리케이션 추가**.
-3. **제품 설정 → 카카오 로그인**: turn it on, and under **Redirect URI** paste the Supabase callback URL from step 1.
-4. **앱 설정 → 요약 정보**: copy the **REST API 키** — in Kakao Developers this key doubles as the value Supabase calls the "Client ID". Under **제품 설정 → 카카오 로그인 → 보안**, generate a **Client Secret** and turn "Client Secret 사용" on.
-5. Paste the REST API key and Client Secret into the Supabase Kakao provider screen → **Save**.
+Kakao is wired up **without** going through Supabase's built-in Kakao OAuth.
+Reason: Supabase always asks Kakao for the `account_email` scope, and Kakao
+only grants that to apps that have converted to a business ("Biz") account —
+a real barrier for an individual developer. Instead, the app runs Kakao's
+own OIDC flow (scope: `openid profile_nickname` only, no business
+verification needed) and hands the resulting id_token to Supabase via
+`signInWithIdToken`. The token exchange happens in `api/kakao-exchange.js`
+(a Vercel serverless function) so the Kakao Client Secret never reaches the
+browser.
+
+1. In [Kakao Developers](https://developers.kakao.com/) → **내 애플리케이션 → 애플리케이션 추가**.
+2. **제품 설정 → 카카오 로그인 → 일반**: turn "사용 설정" ON, and turn **OpenID Connect** ON too (required for the id_token).
+3. **제품 설정 → 카카오 로그인 → 동의항목**: for **닉네임** (`profile_nickname`), click 설정 → 필수 동의. (Leave `account_email` alone — it's not requested, so it doesn't matter that it shows "권한 없음".)
+4. Register your redirect URIs — Kakao's newer console puts this under **앱 설정 → 앱 → 플랫폼 → Web 플랫폼 등록** (or the "JavaScript 키 수정" screen, if that's what you see): add both the site domain and, separately, the exact same URLs as **카카오 로그인 리다이렉트 URI**:
+   ```
+   http://localhost:8744/
+   https://my-bookmk.vercel.app/
+   ```
+   (Trailing slash matters — it must match `window.location.origin + window.location.pathname` exactly.)
+5. **앱 설정 → 요약 정보** → copy the **REST API 키** → paste into `config.js`:
+   ```js
+   window.KAKAO_REST_API_KEY = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+   ```
+6. **제품 설정 → 카카오 로그인 → 보안** → generate a **Client Secret**, turn it ON, copy the code.
+7. In **Vercel → Project Settings → Environment Variables**, add two *server-side* variables (do **not** put these in `config.js` — they must stay off GitHub):
+   - `KAKAO_REST_API_KEY` — same value as step 5
+   - `KAKAO_CLIENT_SECRET` — the code from step 6
+   Redeploy after adding them (env var changes need a new deployment to take effect).
+
+Note: this Kakao flow only works once deployed on Vercel (the serverless
+function needs a real Node runtime) — it won't work from the plain
+`python3 -m http.server` local setup used to test the Google flow.
 
 ## 4. Redirect URLs (both providers)
 

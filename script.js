@@ -531,16 +531,62 @@
     await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
   });
 
-  $('#kakaoLoginBtn').addEventListener('click', async () => {
-    if (!supabase) return;
-    // account_email isn't approved for this Kakao app (needs Kakao's own
-    // review), so ask only for what's pre-approved — the app doesn't use
-    // email for anything at runtime, everything keys off the user's id.
-    await supabase.auth.signInWithOAuth({
-      provider: 'kakao',
-      options: { redirectTo: window.location.origin, scopes: 'profile_nickname' },
+  // Supabase's built-in signInWithOAuth('kakao') always requests
+  // account_email server-side (the `scopes` option only adds to that list,
+  // never replaces it) — Kakao rejects the whole request (KOE205) unless
+  // account_email is approved, which requires converting to a Kakao "Biz
+  // App" (business registration). To avoid that, we run Kakao's OIDC flow
+  // ourselves (scope: openid + profile_nickname only), exchange the code
+  // for an id_token via our own serverless function (api/kakao-exchange.js
+  // — keeps the Kakao Client Secret server-side), then hand that id_token
+  // to Supabase directly.
+  $('#kakaoLoginBtn').addEventListener('click', () => {
+    if (!window.KAKAO_REST_API_KEY) {
+      alertDialog('카카오 로그인 설정이 안 되어 있어요 (config.js의 KAKAO_REST_API_KEY).');
+      return;
+    }
+    const state = crypto.randomUUID();
+    sessionStorage.setItem('kakao_oauth_state', state);
+    const redirectUri = window.location.origin + window.location.pathname;
+    const params = new URLSearchParams({
+      client_id: window.KAKAO_REST_API_KEY,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: 'openid profile_nickname',
+      state,
     });
+    window.location.href = `https://kauth.kakao.com/oauth/authorize?${params.toString()}`;
   });
+
+  async function handleKakaoRedirect() {
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get('code');
+    const state = url.searchParams.get('state');
+    if (!code || !state) return;
+
+    // Clean the URL regardless of outcome so a refresh doesn't replay it.
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.history.replaceState({}, '', cleanUrl);
+
+    const savedState = sessionStorage.getItem('kakao_oauth_state');
+    sessionStorage.removeItem('kakao_oauth_state');
+    if (state !== savedState) {
+      console.error('kakao oauth state mismatch');
+      return;
+    }
+
+    try {
+      const resp = await fetch(`/api/kakao-exchange?code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(cleanUrl)}`);
+      const data = await resp.json();
+      if (!resp.ok || !data.id_token) throw new Error(data.error || 'exchange failed');
+
+      const { error } = await supabase.auth.signInWithIdToken({ provider: 'kakao', token: data.id_token });
+      if (error) throw error;
+    } catch (err) {
+      console.error('kakao login failed', err);
+      alertDialog('카카오 로그인에 실패했어요. 다시 시도해주세요.');
+    }
+  }
 
   $('#logoutBtn').addEventListener('click', async () => {
     if (!supabase) return;
@@ -633,6 +679,8 @@
         renderGrid();
       }
     });
+
+    await handleKakaoRedirect();
   }
 
   boot();

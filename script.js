@@ -45,9 +45,10 @@
     return String(str).replace(/[&<>"']/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[s]));
   }
 
-  function requireDb() {
-    if (!supabase || !currentUser) {
-      alertDialog('로그인 상태가 아니에요. 새로고침 후 다시 로그인해주세요.');
+  function requireAuth() {
+    if (!supabase) return false;
+    if (!currentUser) {
+      $('#loginModal').hidden = false;
       return false;
     }
     return true;
@@ -186,6 +187,7 @@
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (!requireAuth()) return;
         openBookmarkModal(btn.dataset.id);
       });
     });
@@ -238,7 +240,7 @@
   }
 
   async function moveBookmark(sourceId, targetId, insertAfter) {
-    if (!requireDb()) return;
+    if (!requireAuth()) return;
     const sorted = sortedBookmarks().filter(b => b.id !== sourceId);
     const targetIdx = sorted.findIndex(b => b.id === targetId);
     if (targetIdx === -1) return;
@@ -283,12 +285,12 @@
     $('#bookmarkModal').hidden = true;
   }
 
-  $('#addBookmarkBtn').addEventListener('click', () => openBookmarkModal(null));
-  $('#emptyAddBtn').addEventListener('click', () => openBookmarkModal(null));
+  $('#addBookmarkBtn').addEventListener('click', () => { if (requireAuth()) openBookmarkModal(null); });
+  $('#emptyAddBtn').addEventListener('click', () => { if (requireAuth()) openBookmarkModal(null); });
 
   $('#bookmarkForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!requireDb()) return;
+    if (!requireAuth()) return;
     const url = $('#bookmarkUrl').value.trim();
     if (!url) return;
     const id = $('#bookmarkId').value;
@@ -314,7 +316,7 @@
   });
 
   $('#deleteBookmarkBtn').addEventListener('click', async () => {
-    if (!requireDb()) return;
+    if (!requireAuth()) return;
     const id = $('#bookmarkId').value;
     if (!id) return;
     if (!(await confirmDialog('이 북마크를 삭제할까요?'))) return;
@@ -346,14 +348,14 @@
     $('#categoryModal').hidden = false;
   }
 
-  $('#addCategoryBtn').addEventListener('click', () => openCategoryModal(null));
+  $('#addCategoryBtn').addEventListener('click', () => { if (requireAuth()) openCategoryModal(null); });
   $('#categoryTitleEditBtn').addEventListener('click', () => {
-    if (activeCategoryId !== 'all') openCategoryModal(activeCategoryId);
+    if (activeCategoryId !== 'all' && requireAuth()) openCategoryModal(activeCategoryId);
   });
 
   $('#categoryForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!requireDb()) return;
+    if (!requireAuth()) return;
     const name = $('#categoryName').value.trim();
     if (!name) return;
     const id = $('#categoryId').value;
@@ -368,7 +370,7 @@
   });
 
   $('#deleteCategoryBtn').addEventListener('click', async () => {
-    if (!requireDb()) return;
+    if (!requireAuth()) return;
     const id = $('#categoryId').value;
     if (!id) return;
     const c = categoryById(id);
@@ -437,7 +439,7 @@
   $('#importFile').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (!requireDb()) { e.target.value = ''; return; }
+    if (!requireAuth()) { e.target.value = ''; return; }
     const reader = new FileReader();
     reader.onload = async () => {
       try {
@@ -490,55 +492,19 @@
 
   // ---------- Auth ----------
 
-  const DEFAULT_CATEGORIES = ['툴', '아이콘', '폰트', '이미지/사진', '컬러/팔레트', '일러스트', '영감/레퍼런스', 'UI 키트/템플릿', '목업', '커뮤니티/학습'];
-
-  const DEFAULT_BOOKMARKS = [
-    ['https://www.figma.com', 'Figma', '툴'], ['https://www.framer.com', 'Framer', '툴'],
-    ['https://www.sketch.com', 'Sketch', '툴'], ['https://www.canva.com', 'Canva', '툴'],
-    ['https://www.flaticon.com', 'Flaticon', '아이콘'], ['https://icons8.com', 'Icons8', '아이콘'],
-    ['https://feathericons.com', 'Feather Icons', '아이콘'], ['https://iconscout.com', 'IconScout', '아이콘'],
-    ['https://fonts.google.com', 'Google Fonts', '폰트'], ['https://noonnu.cc', '눈누 (한글 폰트)', '폰트'],
-    ['https://fonts.adobe.com', 'Adobe Fonts', '폰트'],
-    ['https://unsplash.com', 'Unsplash', '이미지/사진'], ['https://www.pexels.com', 'Pexels', '이미지/사진'],
-    ['https://www.freepik.com', 'Freepik', '이미지/사진'],
-    ['https://coolors.co', 'Coolors', '컬러/팔레트'], ['https://color.adobe.com', 'Adobe Color', '컬러/팔레트'],
-    ['https://colorhunt.co', 'Color Hunt', '컬러/팔레트'],
-    ['https://undraw.co', 'unDraw', '일러스트'], ['https://storyset.com', 'Storyset', '일러스트'],
-    ['https://blush.design', 'Blush', '일러스트'],
-    ['https://dribbble.com', 'Dribbble', '영감/레퍼런스'], ['https://www.behance.net', 'Behance', '영감/레퍼런스'],
-    ['https://www.pinterest.com', 'Pinterest', '영감/레퍼런스'],
-    ['https://www.figma.com/community', 'Figma Community', 'UI 키트/템플릿'], ['https://mobbin.com', 'Mobbin', 'UI 키트/템플릿'],
-    ['https://ui8.net', 'UI8', 'UI 키트/템플릿'],
-    ['https://smartmockups.com', 'Smartmockups', '목업'], ['https://mockuuups.studio', 'Mockuuups Studio', '목업'],
-    ['https://www.awwwards.com', 'Awwwards', '커뮤니티/학습'], ['https://tympanus.net/codrops', 'Codrops', '커뮤니티/학습'],
-  ];
-
   async function seedDefaultsForNewUser() {
-    const catIds = {};
-    for (const name of DEFAULT_CATEGORIES) {
-      const { data, error } = await supabase.from('categories').insert({ name, user_id: currentUser.id }).select().single();
-      if (error) { console.error(error); continue; }
-      catIds[name] = data.id;
-    }
-    let i = 0;
-    for (const [url, title, catName] of DEFAULT_BOOKMARKS) {
-      await supabase.from('bookmarks').insert({
-        url, title, category_id: catIds[catName] || null,
-        user_id: currentUser.id, sort_order: i * 1000,
-      });
-      i += 1;
-    }
+    // Brand-new accounts start empty except for one starter category —
+    // no bookmarks pre-filled.
+    const { error } = await supabase.from('categories').insert({ name: '01_AI', user_id: currentUser.id });
+    if (error) console.error(error);
   }
 
-  function showAuthScreen() {
-    $('#authScreen').hidden = false;
-    $('#appRoot').hidden = true;
+  function updateAuthUI() {
+    $('#loginBtn').hidden = !!currentUser;
+    $('#logoutBtn').hidden = !currentUser;
   }
 
-  function showApp() {
-    $('#authScreen').hidden = true;
-    $('#appRoot').hidden = false;
-  }
+  $('#loginBtn').addEventListener('click', () => { $('#loginModal').hidden = false; });
 
   $('#googleLoginBtn').addEventListener('click', async () => {
     if (!supabase) return;
@@ -627,7 +593,8 @@
       if (session?.user) {
         if (currentUser?.id === session.user.id) return;
         currentUser = session.user;
-        showApp();
+        updateAuthUI();
+        $('#loginModal').hidden = true;
         await loadUserData();
       } else {
         currentUser = null;
@@ -635,7 +602,9 @@
         categories = [];
         bookmarks = [];
         activeCategoryId = 'all';
-        showAuthScreen();
+        updateAuthUI();
+        renderCategories();
+        renderGrid();
       }
     });
   }

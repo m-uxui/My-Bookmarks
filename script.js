@@ -493,10 +493,30 @@
   // ---------- Auth ----------
 
   async function seedDefaultsForNewUser() {
-    // Brand-new accounts start empty except for one starter category —
-    // no bookmarks pre-filled.
-    const { error } = await supabase.from('categories').insert({ name: '01_AI', user_id: currentUser.id });
-    if (error) console.error(error);
+    // Brand-new accounts start empty except for one starter category,
+    // pre-filled with the big three AI assistants.
+    const { data: cat, error } = await supabase
+      .from('categories')
+      .insert({ name: '01_AI', user_id: currentUser.id })
+      .select()
+      .single();
+    if (error) { console.error(error); return; }
+
+    const starterBookmarks = [
+      { url: 'https://claude.ai', title: 'Claude' },
+      { url: 'https://chatgpt.com', title: 'ChatGPT' },
+      { url: 'https://gemini.google.com', title: 'Gemini' },
+    ];
+    let i = 0;
+    for (const b of starterBookmarks) {
+      await supabase.from('bookmarks').insert({
+        ...b,
+        category_id: cat.id,
+        user_id: currentUser.id,
+        sort_order: i * 1000,
+      });
+      i += 1;
+    }
   }
 
   function updateAuthUI() {

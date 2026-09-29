@@ -533,7 +533,13 @@
 
   $('#kakaoLoginBtn').addEventListener('click', async () => {
     if (!supabase) return;
-    await supabase.auth.signInWithOAuth({ provider: 'kakao', options: { redirectTo: window.location.origin } });
+    // account_email isn't approved for this Kakao app (needs Kakao's own
+    // review), so ask only for what's pre-approved — the app doesn't use
+    // email for anything at runtime, everything keys off the user's id.
+    await supabase.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: { redirectTo: window.location.origin, scopes: 'profile_nickname' },
+    });
   });
 
   $('#logoutBtn').addEventListener('click', async () => {

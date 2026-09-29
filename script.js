@@ -3,6 +3,8 @@
   let bookmarks = [];
   let activeCategoryId = 'all';
   let draggedId = null;
+  let currentUser = null;
+  let realtimeChannels = [];
 
   const $ = (sel) => document.querySelector(sel);
 
@@ -44,8 +46,8 @@
   }
 
   function requireDb() {
-    if (!supabase) {
-      alertDialog('Supabase 연결 정보가 설정되지 않았어요. config.js에 URL과 anon key를 넣어주세요.');
+    if (!supabase || !currentUser) {
+      alertDialog('로그인 상태가 아니에요. 새로고침 후 다시 로그인해주세요.');
       return false;
     }
     return true;
@@ -166,7 +168,7 @@
       const domain = domainOf(b.url);
       const title = b.title || siteNameFromDomain(domain);
       const letter = (b.title || domain || '?').trim().charAt(0).toUpperCase();
-      const iconSrc = b.image || faviconUrl(b.url);
+      const iconSrc = b.favicon || b.image || faviconUrl(b.url);
 
       return `
       <a class="card" data-id="${b.id}" draggable="true" href="${escapeHtml(normalizeUrl(b.url))}" target="_blank" rel="noopener noreferrer">
@@ -303,7 +305,7 @@
       ({ error } = await supabase.from('bookmarks').update(data).eq('id', id));
     } else {
       const minOrder = bookmarks.length ? Math.min(...bookmarks.map(b => b.order ?? 0)) : 0;
-      ({ error } = await supabase.from('bookmarks').insert({ ...data, sort_order: minOrder - 1000 }));
+      ({ error } = await supabase.from('bookmarks').insert({ ...data, user_id: currentUser.id, sort_order: minOrder - 1000 }));
     }
     if (error) {
       console.error(error);
@@ -358,7 +360,7 @@
     $('#categoryModal').hidden = true;
     const { error } = id
       ? await supabase.from('categories').update({ name }).eq('id', id)
-      : await supabase.from('categories').insert({ name });
+      : await supabase.from('categories').insert({ name, user_id: currentUser.id });
     if (error) {
       console.error(error);
       alertDialog('저장에 실패했어요. 다시 시도해주세요.');
@@ -456,7 +458,7 @@
             idMap[c.id] = categories.find(x => x.name === c.name)?.id;
             continue;
           }
-          const { data: inserted, error } = await supabase.from('categories').insert({ name: c.name }).select().single();
+          const { data: inserted, error } = await supabase.from('categories').insert({ name: c.name, user_id: currentUser.id }).select().single();
           if (error) { console.error(error); continue; }
           idMap[c.id] = inserted.id;
           existingNames.add(c.name);
@@ -472,6 +474,7 @@
             category_id,
             image: b.image || '',
             note: b.note || '',
+            user_id: currentUser.id,
             sort_order: baseOrder - i * 10,
           });
           i += 1;
@@ -485,11 +488,78 @@
     e.target.value = '';
   });
 
+  // ---------- Auth ----------
+
+  const DEFAULT_CATEGORIES = ['툴', '아이콘', '폰트', '이미지/사진', '컬러/팔레트', '일러스트', '영감/레퍼런스', 'UI 키트/템플릿', '목업', '커뮤니티/학습'];
+
+  const DEFAULT_BOOKMARKS = [
+    ['https://www.figma.com', 'Figma', '툴'], ['https://www.framer.com', 'Framer', '툴'],
+    ['https://www.sketch.com', 'Sketch', '툴'], ['https://www.canva.com', 'Canva', '툴'],
+    ['https://www.flaticon.com', 'Flaticon', '아이콘'], ['https://icons8.com', 'Icons8', '아이콘'],
+    ['https://feathericons.com', 'Feather Icons', '아이콘'], ['https://iconscout.com', 'IconScout', '아이콘'],
+    ['https://fonts.google.com', 'Google Fonts', '폰트'], ['https://noonnu.cc', '눈누 (한글 폰트)', '폰트'],
+    ['https://fonts.adobe.com', 'Adobe Fonts', '폰트'],
+    ['https://unsplash.com', 'Unsplash', '이미지/사진'], ['https://www.pexels.com', 'Pexels', '이미지/사진'],
+    ['https://www.freepik.com', 'Freepik', '이미지/사진'],
+    ['https://coolors.co', 'Coolors', '컬러/팔레트'], ['https://color.adobe.com', 'Adobe Color', '컬러/팔레트'],
+    ['https://colorhunt.co', 'Color Hunt', '컬러/팔레트'],
+    ['https://undraw.co', 'unDraw', '일러스트'], ['https://storyset.com', 'Storyset', '일러스트'],
+    ['https://blush.design', 'Blush', '일러스트'],
+    ['https://dribbble.com', 'Dribbble', '영감/레퍼런스'], ['https://www.behance.net', 'Behance', '영감/레퍼런스'],
+    ['https://www.pinterest.com', 'Pinterest', '영감/레퍼런스'],
+    ['https://www.figma.com/community', 'Figma Community', 'UI 키트/템플릿'], ['https://mobbin.com', 'Mobbin', 'UI 키트/템플릿'],
+    ['https://ui8.net', 'UI8', 'UI 키트/템플릿'],
+    ['https://smartmockups.com', 'Smartmockups', '목업'], ['https://mockuuups.studio', 'Mockuuups Studio', '목업'],
+    ['https://www.awwwards.com', 'Awwwards', '커뮤니티/학습'], ['https://tympanus.net/codrops', 'Codrops', '커뮤니티/학습'],
+  ];
+
+  async function seedDefaultsForNewUser() {
+    const catIds = {};
+    for (const name of DEFAULT_CATEGORIES) {
+      const { data, error } = await supabase.from('categories').insert({ name, user_id: currentUser.id }).select().single();
+      if (error) { console.error(error); continue; }
+      catIds[name] = data.id;
+    }
+    let i = 0;
+    for (const [url, title, catName] of DEFAULT_BOOKMARKS) {
+      await supabase.from('bookmarks').insert({
+        url, title, category_id: catIds[catName] || null,
+        user_id: currentUser.id, sort_order: i * 1000,
+      });
+      i += 1;
+    }
+  }
+
+  function showAuthScreen() {
+    $('#authScreen').hidden = false;
+    $('#appRoot').hidden = true;
+  }
+
+  function showApp() {
+    $('#authScreen').hidden = true;
+    $('#appRoot').hidden = false;
+  }
+
+  $('#googleLoginBtn').addEventListener('click', async () => {
+    if (!supabase) return;
+    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+  });
+
+  $('#kakaoLoginBtn').addEventListener('click', async () => {
+    if (!supabase) return;
+    await supabase.auth.signInWithOAuth({ provider: 'kakao', options: { redirectTo: window.location.origin } });
+  });
+
+  $('#logoutBtn').addEventListener('click', async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+  });
+
   // ---------- Init ----------
 
-  function showDbUnavailable() {
-    document.querySelector('.body').innerHTML = `
-      <div style="padding:80px 24px;text-align:center;color:var(--text-muted);max-width:420px;margin:0 auto;">
+  function showConfigMissing() {
+    document.body.innerHTML = `
+      <div style="padding:80px 24px;text-align:center;color:#9a9a9d;max-width:420px;margin:0 auto;font-family:-apple-system,sans-serif;">
         <p style="font-size:15px;line-height:1.6;">Supabase 연결 정보가 없어요.<br>config.js에 SUPABASE_URL과 SUPABASE_ANON_KEY를 채워주세요.</p>
       </div>`;
   }
@@ -512,27 +582,62 @@
       categoryId: b.category_id,
       image: b.image,
       note: b.note,
+      favicon: b.favicon,
       order: b.sort_order,
     }));
     renderCategories();
     renderGrid();
   }
 
-  async function boot() {
-    if (!supabase) {
-      showDbUnavailable();
-      return;
-    }
+  function teardownRealtime() {
+    realtimeChannels.forEach(ch => supabase.removeChannel(ch));
+    realtimeChannels = [];
+  }
+
+  async function loadUserData() {
+    const { count } = await supabase.from('categories').select('*', { count: 'exact', head: true });
+    if (!count) await seedDefaultsForNewUser();
+
     await refreshCategories();
     await refreshBookmarks();
 
-    supabase.channel('categories-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, refreshCategories)
-      .subscribe();
+    realtimeChannels.push(
+      supabase.channel('categories-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, refreshCategories)
+        .subscribe()
+    );
+    realtimeChannels.push(
+      supabase.channel('bookmarks-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'bookmarks' }, refreshBookmarks)
+        .subscribe()
+    );
+  }
 
-    supabase.channel('bookmarks-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookmarks' }, refreshBookmarks)
-      .subscribe();
+  async function boot() {
+    if (!supabase) {
+      showConfigMissing();
+      return;
+    }
+
+    // onAuthStateChange fires once immediately with the current session
+    // (or null), then again on every future sign-in/out — this is the
+    // single source of truth for auth state, so there's no separate
+    // getSession() call here (that would double-fire loadUserData()).
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        if (currentUser?.id === session.user.id) return;
+        currentUser = session.user;
+        showApp();
+        await loadUserData();
+      } else {
+        currentUser = null;
+        teardownRealtime();
+        categories = [];
+        bookmarks = [];
+        activeCategoryId = 'all';
+        showAuthScreen();
+      }
+    });
   }
 
   boot();

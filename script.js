@@ -541,6 +541,7 @@
   function updateAuthUI() {
     $('#loginBtn').hidden = !!currentUser;
     $('#logoutBtn').hidden = !currentUser;
+    $('#deleteAccountBtn').hidden = !currentUser;
     const adminEmails = (window.ADMIN_EMAILS || []).map(e => e.toLowerCase());
     $('#statsLink').hidden = !(currentUser?.email && adminEmails.includes(currentUser.email.toLowerCase()));
   }
@@ -612,6 +613,26 @@
   $('#logoutBtn').addEventListener('click', async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
+  });
+
+  $('#deleteAccountBtn').addEventListener('click', async () => {
+    if (!requireAuth()) return;
+    const ok = await confirmDialog('정말 계정을 삭제할까요?\n북마크와 카테고리가 전부 영구히 삭제되고, 되돌릴 수 없어요.');
+    if (!ok) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || 'delete failed');
+      await supabase.auth.signOut();
+      alertDialog('계정이 삭제됐어요.');
+    } catch (err) {
+      console.error(err);
+      alertDialog('계정 삭제에 실패했어요. 다시 시도해주세요.');
+    }
   });
 
   // ---------- Init ----------

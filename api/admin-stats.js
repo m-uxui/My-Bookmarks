@@ -60,30 +60,36 @@ export default async function handler(req, res) {
     const recentViews = await viewsResp.json();
     const views = Array.isArray(recentViews) ? recentViews : [];
 
-    const dayKey = (iso) => String(iso).slice(0, 10);
+    // "오늘"/날짜별 집계는 전부 KST(UTC+9) 달력 날짜 기준 — 그래야 아래 표의
+    // 날짜별 숫자와 위 카드의 "오늘/최근 N일" 숫자가 서로 어긋나지 않는다.
+    const KST_OFFSET_MS = 9 * 3600 * 1000;
+    const kstDayKey = (iso) => new Date(new Date(iso).getTime() + KST_OFFSET_MS).toISOString().slice(0, 10);
     const bucketByDay = (rows) => {
       const map = {};
-      for (const r of rows) { const k = dayKey(r.created_at); map[k] = (map[k] || 0) + 1; }
+      for (const r of rows) { const k = kstDayKey(r.created_at); map[k] = (map[k] || 0) + 1; }
       return map;
     };
-    const now = Date.now();
-    const since_ = (n) => now - n * 24 * 3600 * 1000;
+    // n일 전 KST 자정에 해당하는 실제 UTC 타임스탬프(ms).
+    const kstNow = new Date(Date.now() + KST_OFFSET_MS);
+    const kstMidnightUtcMs = (daysAgo) => Date.UTC(
+      kstNow.getUTCFullYear(), kstNow.getUTCMonth(), kstNow.getUTCDate() - daysAgo
+    ) - KST_OFFSET_MS;
     const countSince = (rows, ms) => rows.filter(r => new Date(r.created_at).getTime() >= ms).length;
 
     res.status(200).json({
       signups: {
         total: users.length,
-        today: countSince(users, since_(1)),
-        last7Days: countSince(users, since_(7)),
-        last30Days: countSince(users, since_(30)),
+        today: countSince(users, kstMidnightUtcMs(0)),
+        last7Days: countSince(users, kstMidnightUtcMs(6)),
+        last30Days: countSince(users, kstMidnightUtcMs(29)),
         byDay: bucketByDay(users),
       },
       views: {
         total: totalViews,
         uniqueVisitors: new Set(views.map(v => v.visitor_id)).size,
-        today: countSince(views, since_(1)),
-        last7Days: countSince(views, since_(7)),
-        last30Days: countSince(views, since_(30)),
+        today: countSince(views, kstMidnightUtcMs(0)),
+        last7Days: countSince(views, kstMidnightUtcMs(6)),
+        last30Days: countSince(views, kstMidnightUtcMs(29)),
         byDay: bucketByDay(views),
       },
     });

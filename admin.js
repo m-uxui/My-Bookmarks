@@ -28,9 +28,12 @@
     $('#viewToday').textContent = data.views.today;
     $('#view7').textContent = data.views.last7Days;
 
+    // 서버(api/admin-stats.js)가 KST(UTC+9) 달력 날짜로 집계하므로, 여기서
+    // 만드는 날짜 목록도 같은 기준이어야 표 숫자가 위 카드와 어긋나지 않는다.
+    const KST_OFFSET_MS = 9 * 3600 * 1000;
     const days = [];
     for (let i = 13; i >= 0; i -= 1) {
-      days.push(new Date(Date.now() - i * 24 * 3600 * 1000).toISOString().slice(0, 10));
+      days.push(new Date(Date.now() - i * 24 * 3600 * 1000 + KST_OFFSET_MS).toISOString().slice(0, 10));
     }
     $('#trendBody').innerHTML = days.map(d => `
       <tr><td>${d}</td><td>${data.signups.byDay[d] || 0}</td><td>${data.views.byDay[d] || 0}</td></tr>

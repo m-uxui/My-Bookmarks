@@ -162,6 +162,8 @@
 
     $('#resultCount').textContent = items.length ? `${items.length}개` : '';
     $('#emptyState').hidden = items.length !== 0;
+    $('#emptyState p').textContent = query ? '검색 결과가 없어요.' : '아직 북마크가 없어요.';
+    $('#emptyAddBtn').hidden = !!query;
     const grid = $('#grid');
 
     grid.innerHTML = items.map(b => {
@@ -175,7 +177,7 @@
       <a class="card" data-id="${b.id}" draggable="true" href="${escapeHtml(normalizeUrl(b.url))}" target="_blank" rel="noopener noreferrer">
         <button class="icon-btn edit-btn" title="수정" data-id="${b.id}">${pencilIcon()}</button>
         <div class="card-icon">
-          <img src="${escapeHtml(iconSrc)}" alt="" draggable="false" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'letter',textContent:'${letter}'}))">
+          <img src="${escapeHtml(iconSrc)}" alt="" draggable="false" data-fallback-letter="${escapeHtml(letter)}">
         </div>
         <div class="card-title">${escapeHtml(title)}</div>
         <div class="card-domain">${escapeHtml(domain)}</div>
@@ -190,6 +192,15 @@
         if (!requireAuth()) return;
         openBookmarkModal(btn.dataset.id);
       });
+    });
+
+    grid.querySelectorAll('.card-icon img').forEach(img => {
+      img.addEventListener('error', () => {
+        const span = document.createElement('span');
+        span.className = 'letter';
+        span.textContent = img.dataset.fallbackLetter || '?';
+        img.replaceWith(span);
+      }, { once: true });
     });
 
     initDragReorder(grid);
@@ -365,7 +376,7 @@
       : await supabase.from('categories').insert({ name, user_id: currentUser.id });
     if (error) {
       console.error(error);
-      alertDialog('저장에 실패했어요. 다시 시도해주세요.');
+      alertDialog(error.code === '23505' ? '이미 같은 이름의 카테고리가 있어요.' : '저장에 실패했어요. 다시 시도해주세요.');
     }
   });
 

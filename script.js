@@ -401,6 +401,7 @@
     el.addEventListener('click', () => {
       $('#bookmarkModal').hidden = true;
       $('#categoryModal').hidden = true;
+      $('#loginModal').hidden = true;
     });
   });
 
@@ -414,6 +415,7 @@
     if (e.key === 'Escape') {
       $('#bookmarkModal').hidden = true;
       $('#categoryModal').hidden = true;
+      $('#loginModal').hidden = true;
     }
   });
 

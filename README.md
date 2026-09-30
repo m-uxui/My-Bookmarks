@@ -80,9 +80,23 @@ git push -u origin main
 3. Leave all build settings blank (it's a static site, no framework/build step) → **Deploy**.
 4. Add the resulting `*.vercel.app` URL to Supabase's Redirect URLs (step 4 above).
 
+## 7. 통계 페이지 (관리자 전용, 선택)
+
+`/admin.html`에서 가입자 수·방문자 수를 볼 수 있어요. RLS로는 `auth.users`를 읽을 수 없어서, `service_role` 키를 쓰는 별도 서버리스 함수(`api/admin-stats.js`)가 이메일을 확인한 뒤 통계만 돌려주는 구조입니다. `service_role` 키는 RLS를 완전히 우회하므로 절대 `config.js`나 브라우저에 노출하면 안 돼요.
+
+1. **Supabase → Project Settings → API** → **service_role** 키(secret) 복사.
+2. **Vercel → Project Settings → Environment Variables**에 서버 전용 변수 3개 추가:
+   - `SUPABASE_URL` — `config.js`의 `SUPABASE_URL`과 같은 값
+   - `SUPABASE_SERVICE_ROLE_KEY` — 1번에서 복사한 service_role 키
+   - `ADMIN_EMAILS` — 통계를 볼 수 있는 이메일(쉼표로 여러 개 가능), 예: `you@gmail.com`
+   추가 후 **redeploy**해야 적용됩니다.
+3. 로그인 후 `https://<배포주소>/admin.html`로 접속 — `ADMIN_EMAILS`에 없는 계정은 403으로 막힙니다.
+
+방문자 수는 `page_views` 테이블에 익명으로 기록돼요(쿠키·개인정보 없음, 브라우저 localStorage의 임의 id 하나만 사용). `schema.sql`을 다시 실행하면 이 테이블이 생성됩니다.
+
 ## Notes
 
 - Every table row carries a `user_id`; RLS policies only let `auth.uid() = user_id` read or write it — so even with the anon key exposed in client code (normal for Supabase), nobody can see or touch another signed-in user's bookmarks.
-- The first time someone logs in, they're seeded with the original starter set (10 design categories, ~30 curated tools) so the app isn't empty on day one.
+- The first time someone logs in, they're seeded with one starter category ("01_AI") pre-filled with Claude/ChatGPT/Gemini, so the app isn't empty on day one.
 - Favicons load directly from Google's favicon service (`s2/favicons`) — no special setup needed, unlike the Claude-artifact version this was ported from.
 - Data updates live across every open tab for that same signed-in user (Supabase Realtime).

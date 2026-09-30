@@ -89,4 +89,21 @@ begin
   end if;
 end $$;
 
+-- Anonymous page-view log, used only for the owner's admin stats page
+-- (api/admin-stats.js, read with the service_role key — RLS below leaves
+-- it with no select policy at all, so the anon/authenticated roles used
+-- by the rest of the app can never read it back, only insert into it).
+create table if not exists page_views (
+  id uuid primary key default gen_random_uuid(),
+  visitor_id text not null,
+  path text not null default '/',
+  created_at timestamptz not null default now()
+);
+create index if not exists page_views_created_at_idx on page_views(created_at);
+create index if not exists page_views_visitor_id_idx on page_views(visitor_id);
+
+alter table page_views enable row level security;
+drop policy if exists "anyone can log a page view" on page_views;
+create policy "anyone can log a page view" on page_views for insert with check (true);
+
 NOTIFY pgrst, 'reload schema';

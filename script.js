@@ -670,11 +670,27 @@
     );
   }
 
+  // Anonymous visit ping for the owner's admin stats page. No cookies, no
+  // PII — just a random id kept in localStorage so repeat visits from the
+  // same browser roughly count as one "visitor" instead of N page views.
+  function logPageView() {
+    try {
+      let visitorId = localStorage.getItem('bm_visitor_id');
+      if (!visitorId) {
+        visitorId = crypto.randomUUID();
+        localStorage.setItem('bm_visitor_id', visitorId);
+      }
+      supabase.from('page_views').insert({ visitor_id: visitorId, path: location.pathname }).then(() => {});
+    } catch (e) { /* localStorage unavailable (private mode etc) — skip silently */ }
+  }
+
   async function boot() {
     if (!supabase) {
       showConfigMissing();
       return;
     }
+
+    logPageView();
 
     // onAuthStateChange fires once immediately with the current session
     // (or null), then again on every future sign-in/out — this is the

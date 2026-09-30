@@ -21,4 +21,4 @@ window.ADMIN_EMAILS = ['myungnara@gmail.com'];
 // Google Analytics 4 — analytics.google.com → 관리 → 데이터 스트림 → 웹 스트림
 // → "측정 ID" (G-로 시작). 비밀값 아님, 공개돼도 안전. 그대로 두면(G-XXXX로
 // 시작) GA 스크립트 자체를 안 불러와요.
-window.GA_MEASUREMENT_ID = 'G-XXXXXXXXXX';
+window.GA_MEASUREMENT_ID = 'G-DRZ0HWJPGX';

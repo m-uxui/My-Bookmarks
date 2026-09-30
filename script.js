@@ -1,3 +1,20 @@
+// Google Analytics 4 (optional) — set config.js's GA_MEASUREMENT_ID to a
+// real G-... id to enable; leave the placeholder to skip loading it
+// entirely. Kept outside the main app IIFE so it loads regardless of
+// Supabase being configured, and only on this page (not admin.html).
+(() => {
+  const id = window.GA_MEASUREMENT_ID;
+  if (!id || id.startsWith('G-XXXX')) return;
+  const s = document.createElement('script');
+  s.async = true;
+  s.src = `https://www.googletagmanager.com/gtag/js?id=${id}`;
+  document.head.appendChild(s);
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function gtag() { window.dataLayer.push(arguments); };
+  window.gtag('js', new Date());
+  window.gtag('config', id);
+})();
+
 (() => {
   let categories = [];
   let bookmarks = [];

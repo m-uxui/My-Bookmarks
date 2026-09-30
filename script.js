@@ -541,6 +541,8 @@
   function updateAuthUI() {
     $('#loginBtn').hidden = !!currentUser;
     $('#logoutBtn').hidden = !currentUser;
+    const adminEmails = (window.ADMIN_EMAILS || []).map(e => e.toLowerCase());
+    $('#statsLink').hidden = !(currentUser?.email && adminEmails.includes(currentUser.email.toLowerCase()));
   }
 
   $('#loginBtn').addEventListener('click', () => { $('#loginModal').hidden = false; });

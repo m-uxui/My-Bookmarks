@@ -277,8 +277,19 @@
     const neighbor = sorted[neighborIdx];
     const neighborOrder = neighbor ? (neighbor.order ?? 0) : (insertAfter ? targetOrder + 2000 : targetOrder - 2000);
     const newOrder = (targetOrder + neighborOrder) / 2;
+
+    // Apply the reorder locally first so the grid updates instantly on
+    // drop, instead of waiting on the round trip to Supabase + the
+    // Realtime event coming back before the card visually moves.
+    const local = bookmarks.find(b => b.id === sourceId);
+    if (local) local.order = newOrder;
+    renderGrid();
+
     const { error } = await supabase.from('bookmarks').update({ sort_order: newOrder }).eq('id', sourceId);
-    if (error) console.error(error);
+    if (error) {
+      console.error(error);
+      await refreshBookmarks(); // resync with the server if the save failed
+    }
   }
 
   // ---------- Bookmark modal ----------

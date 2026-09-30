@@ -502,7 +502,13 @@
       .insert({ name: '01_AI', user_id: currentUser.id })
       .select()
       .single();
-    if (error) { console.error(error); return; }
+    if (error) {
+      // 23505 = unique_violation on (user_id, name): another concurrent
+      // login (e.g. a second tab, or onAuthStateChange firing twice)
+      // already seeded this user — nothing left to do.
+      if (error.code !== '23505') console.error(error);
+      return;
+    }
 
     const starterBookmarks = [
       { url: 'https://claude.ai', title: 'Claude' },

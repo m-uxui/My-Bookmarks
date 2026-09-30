@@ -29,6 +29,17 @@ alter table bookmarks add column if not exists favicon text not null default '';
 create index if not exists categories_user_id_idx on categories(user_id);
 create index if not exists bookmarks_user_id_idx on bookmarks(user_id);
 
+-- Prevents the first-login seed from ever creating a duplicate "01_AI"
+-- category if onAuthStateChange happens to fire twice in a race.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'categories_user_id_name_key'
+  ) then
+    alter table categories add constraint categories_user_id_name_key unique (user_id, name);
+  end if;
+end $$;
+
 alter table categories enable row level security;
 alter table bookmarks enable row level security;
 

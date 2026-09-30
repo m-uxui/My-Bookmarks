@@ -32,7 +32,7 @@
     // 만드는 날짜 목록도 같은 기준이어야 표 숫자가 위 카드와 어긋나지 않는다.
     const KST_OFFSET_MS = 9 * 3600 * 1000;
     const days = [];
-    for (let i = 13; i >= 0; i -= 1) {
+    for (let i = 0; i <= 13; i += 1) {
       days.push(new Date(Date.now() - i * 24 * 3600 * 1000 + KST_OFFSET_MS).toISOString().slice(0, 10));
     }
     $('#trendBody').innerHTML = days.map(d => `

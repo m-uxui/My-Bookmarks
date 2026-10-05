@@ -1,5 +1,5 @@
-// Vercel serverless function. Returns a page's <title> so a new bookmark
-// gets a real name instead of just its domain. Signed-in users only, so
+// Vercel serverless function. Returns a page's description (og:description or
+// meta description) so a bookmark card can show what the site is about. Signed-in users only, so
 // this can't be used as an open proxy. Uses the same SUPABASE_URL and
 // SUPABASE_SERVICE_ROLE_KEY env vars as api/admin-stats.js.
 //
@@ -44,15 +44,16 @@ function decodeEntities(s) {
     .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)));
 }
 
-function extractTitle(html) {
+function extractDescription(html) {
   const patterns = [
-    /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)["']/i,
-    /<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:title["']/i,
-    /<title[^>]*>([^<]*)<\/title>/i,
+    /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']*)["']/i,
+    /<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:description["']/i,
+    /<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i,
+    /<meta[^>]+content=["']([^"']*)["'][^>]+name=["']description["']/i,
   ];
   for (const re of patterns) {
     const m = html.match(re);
-    if (m && m[1].trim()) return decodeEntities(m[1].trim()).replace(/\s+/g, ' ').slice(0, 200);
+    if (m && m[1].trim()) return decodeEntities(m[1].trim()).replace(/\s+/g, ' ').slice(0, 300);
   }
   return '';
 }
@@ -118,11 +119,11 @@ export default async function handler(req, res) {
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
       const html = await fetchPageHtml(target, controller.signal);
-      res.status(200).json({ title: extractTitle(html) });
+      res.status(200).json({ description: extractDescription(html) });
     } finally {
       clearTimeout(timer);
     }
   } catch (err) {
-    res.status(200).json({ title: '' });
+    res.status(200).json({ description: '' });
   }
 }

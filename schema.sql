@@ -25,6 +25,7 @@ create table if not exists bookmarks (
 );
 alter table bookmarks add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table bookmarks add column if not exists favicon text not null default '';
+alter table bookmarks add column if not exists description text not null default '';
 
 create index if not exists categories_user_id_idx on categories(user_id);
 create index if not exists bookmarks_user_id_idx on bookmarks(user_id);

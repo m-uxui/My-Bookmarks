@@ -198,6 +198,7 @@
         </div>
         <div class="card-title">${escapeHtml(title)}</div>
         <div class="card-domain">${escapeHtml(domain)}</div>
+        ${b.description ? `<div class="card-desc">${escapeHtml(b.description)}</div>` : ''}
         ${(activeCategoryId === 'all' && cat) ? `<span class="card-tag">${escapeHtml(cat.name)}</span>` : ''}
       </a>`;
     }).join('');
@@ -295,6 +296,7 @@
   // ---------- Bookmark modal ----------
 
   function openBookmarkModal(id) {
+    pendingDescription = '';
     renderCategorySelect();
     const modal = $('#bookmarkModal');
     const deleteBtn = $('#deleteBookmarkBtn');
@@ -326,10 +328,11 @@
 
   $('#addBookmarkBtn').addEventListener('click', () => { if (requireAuth()) openBookmarkModal(null); });
 
-  async function fillTitleFromUrl() {
+  let pendingDescription = '';
+
+  async function fetchDescriptionFromUrl() {
     const url = $('#bookmarkUrl').value.trim();
-    const titleEl = $('#bookmarkTitle');
-    if (!url || titleEl.value.trim() || !currentUser) return;
+    if (!url || !currentUser) return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
@@ -337,14 +340,14 @@
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (!resp.ok) return;
-      const { title } = await resp.json();
-      if (title && !titleEl.value.trim()) titleEl.value = title;
+      const { description } = await resp.json();
+      pendingDescription = description || '';
     } catch (e) {
       console.error(e);
     }
   }
 
-  $('#bookmarkUrl').addEventListener('blur', fillTitleFromUrl);
+  $('#bookmarkUrl').addEventListener('blur', fetchDescriptionFromUrl);
   $('#emptyAddBtn').addEventListener('click', () => { if (requireAuth()) openBookmarkModal(null); });
 
   $('#bookmarkForm').addEventListener('submit', async (e) => {
@@ -360,6 +363,8 @@
       image: $('#bookmarkImage').value.trim(),
       note: $('#bookmarkNote').value.trim(),
     };
+    if (pendingDescription) data.description = pendingDescription;
+    pendingDescription = '';
     closeBookmarkModal();
     let error;
     if (id) {
@@ -710,6 +715,7 @@
       categoryId: b.category_id,
       image: b.image,
       note: b.note,
+      description: b.description,
       favicon: b.favicon,
       order: b.sort_order,
     }));

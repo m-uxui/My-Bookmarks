@@ -262,10 +262,9 @@ button, input, select, textarea { font-family: inherit; }
   color: var(--text-muted);
   margin-top: 6px;
   max-width: 100%;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 .card-tag {
   font-size: 12px;

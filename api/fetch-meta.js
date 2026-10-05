@@ -1,8 +1,8 @@
-// Vercel serverless function. Returns a page's description for a URL.
+// Vercel serverless function. Returns a page's <title> for a URL.
 // Signed-in users only, so it can't be used as an open proxy. Uses the same
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env vars as api/admin-stats.js.
 
-import { fetchDescription } from '../lib/page-meta.js';
+import { fetchPageTitle } from '../lib/page-meta.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') { res.status(405).json({ error: 'method not allowed' }); return; }
@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     });
     if (!meResp.ok) { res.status(401).json({ error: 'invalid session' }); return; }
 
-    res.status(200).json({ description: await fetchDescription(target) });
+    res.status(200).json({ description: await fetchPageTitle(target) });
   } catch (err) {
     res.status(200).json({ description: '' });
   }

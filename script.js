@@ -680,7 +680,7 @@
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('no session');
       while (true) {
-        const resp = await fetch(`/api/backfill-descriptions?cursor=${encodeURIComponent(cursor)}`, {
+        const resp = await fetch(`/api/backfill-descriptions?force=1&cursor=${encodeURIComponent(cursor)}`, {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
         const data = await resp.json();

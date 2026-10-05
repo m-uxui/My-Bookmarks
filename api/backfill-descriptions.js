@@ -42,11 +42,12 @@ export default async function handler(req, res) {
     await Promise.all(rows.map(async (row) => {
       const description = await fetchDescription(row.url);
       if (!description) return;
-      await fetch(`${SUPABASE_URL}/rest/v1/bookmarks?id=eq.${row.id}&user_id=eq.${me.id}`, {
+      const patch = await fetch(`${SUPABASE_URL}/rest/v1/bookmarks?id=eq.${row.id}&user_id=eq.${me.id}`, {
         method: 'PATCH',
         headers: { ...adminHeaders, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
         body: JSON.stringify({ description }),
       });
+      if (!patch.ok) throw new Error(`update failed: ${await patch.text()}`);
     }));
 
     res.status(200).json({

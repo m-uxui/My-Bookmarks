@@ -325,6 +325,26 @@
   }
 
   $('#addBookmarkBtn').addEventListener('click', () => { if (requireAuth()) openBookmarkModal(null); });
+
+  async function fillTitleFromUrl() {
+    const url = $('#bookmarkUrl').value.trim();
+    const titleEl = $('#bookmarkTitle');
+    if (!url || titleEl.value.trim() || !currentUser) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const resp = await fetch(`/api/fetch-meta?url=${encodeURIComponent(normalizeUrl(url))}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!resp.ok) return;
+      const { title } = await resp.json();
+      if (title && !titleEl.value.trim()) titleEl.value = title;
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  $('#bookmarkUrl').addEventListener('blur', fillTitleFromUrl);
   $('#emptyAddBtn').addEventListener('click', () => { if (requireAuth()) openBookmarkModal(null); });
 
   $('#bookmarkForm').addEventListener('submit', async (e) => {

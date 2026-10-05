@@ -263,10 +263,10 @@ button, input, select, textarea { font-family: inherit; }
   right: 0;
   bottom: 0;
   padding: 36px 16px 14px;
-  background: linear-gradient(to top, #fff 45%, rgba(255, 255, 255, 0));
+  background: linear-gradient(to top, rgba(20, 20, 20, 0.85) 45%, rgba(20, 20, 20, 0));
   font-size: 12px;
   line-height: 1.45;
-  color: var(--text);
+  color: #fff;
   text-align: left;
   opacity: 0;
   pointer-events: none;

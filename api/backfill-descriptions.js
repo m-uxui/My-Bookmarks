@@ -1,6 +1,6 @@
 // Vercel serverless function. Fills in each of the caller's own bookmarks
-// with the page's <title> (the name the browser would show). `force=1`
-// re-fetches bookmarks that already have one. The client calls it in a loop, passing
+// with the page's <title> (the name the browser would show). A bookmark
+// whose page has no title gets a single space so it isn't re-fetched. The client calls it in a loop, passing
 // the last id it got back as the cursor, until `done` is true. Only rows
 // belonging to the verified caller are read or updated.
 
@@ -33,8 +33,7 @@ export default async function handler(req, res) {
     if (!meResp.ok || !me?.id) { res.status(401).json({ error: 'invalid session' }); return; }
 
     const adminHeaders = { apikey: SERVICE_ROLE_KEY, Authorization: `Bearer ${SERVICE_ROLE_KEY}` };
-    const onlyEmpty = req.query.force === '1' ? '' : '&description=eq.';
-    let listUrl = `${SUPABASE_URL}/rest/v1/bookmarks?select=id,url&user_id=eq.${me.id}${onlyEmpty}&order=id.asc&limit=${BATCH}`;
+    let listUrl = `${SUPABASE_URL}/rest/v1/bookmarks?select=id,url&user_id=eq.${me.id}&description=eq.&order=id.asc&limit=${BATCH}`;
     if (cursor) listUrl += `&id=gt.${cursor}`;
 
     const listResp = await fetch(listUrl, { headers: adminHeaders });
@@ -42,8 +41,7 @@ export default async function handler(req, res) {
     if (!listResp.ok || !Array.isArray(rows)) { res.status(500).json({ error: 'failed to list bookmarks' }); return; }
 
     await Promise.all(rows.map(async (row) => {
-      const description = await fetchPageTitle(row.url);
-      if (!description) return;
+      const description = (await fetchPageTitle(row.url)) || ' ';
       const patch = await fetch(`${SUPABASE_URL}/rest/v1/bookmarks?id=eq.${row.id}&user_id=eq.${me.id}`, {
         method: 'PATCH',
         headers: { ...adminHeaders, 'Content-Type': 'application/json', Prefer: 'return=minimal' },

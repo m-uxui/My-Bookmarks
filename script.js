@@ -198,7 +198,7 @@
         </div>
         <div class="card-title">${escapeHtml(title)}</div>
         <div class="card-domain">${escapeHtml(domain)}</div>
-        ${b.description ? `<div class="card-desc"><span>${escapeHtml(b.description)}</span></div>` : ''}
+        ${b.description?.trim() ? `<div class="card-desc"><span>${escapeHtml(b.description)}</span></div>` : ''}
         ${(activeCategoryId === 'all' && cat) ? `<span class="card-tag">${escapeHtml(cat.name)}</span>` : ''}
       </a>`;
     }).join('');
@@ -598,7 +598,6 @@
     const adminEmails = (window.ADMIN_EMAILS || []).map(e => e.toLowerCase());
     const isAdmin = !!(currentUser?.email && adminEmails.includes(currentUser.email.toLowerCase()));
     $('#statsLink').hidden = !isAdmin;
-    $('#backfillBtn').hidden = !isAdmin;
   }
 
   $('#loginBtn').addEventListener('click', () => { $('#loginModal').hidden = false; });
@@ -670,36 +669,6 @@
     await supabase.auth.signOut();
   });
 
-  $('#backfillBtn').addEventListener('click', async () => {
-    if (!requireAuth()) return;
-    const btn = $('#backfillBtn');
-    btn.disabled = true;
-    let cursor = '';
-    let total = 0;
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('no session');
-      while (true) {
-        const resp = await fetch(`/api/backfill-descriptions?force=1&cursor=${encodeURIComponent(cursor)}`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data.error || 'backfill failed');
-        total += data.processed;
-        btn.textContent = `채우는 중 ${total}개`;
-        cursor = data.nextCursor;
-        if (data.done) break;
-      }
-      alertDialog(`설명 채우기 완료 (${total}개 확인)`);
-    } catch (err) {
-      console.error(err);
-      alertDialog('설명 채우기에 실패했어요. 다시 시도해주세요.');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = '설명 채우기';
-    }
-  });
-
   $('#deleteAccountBtn').addEventListener('click', async () => {
     if (!requireAuth()) return;
     const ok = await confirmDialog('정말 계정을 삭제할까요?\n북마크와 카테고리가 전부 영구히 삭제되고, 되돌릴 수 없어요.');
@@ -760,12 +729,38 @@
     realtimeChannels = [];
   }
 
+  let backfilling = false;
+
+  async function backfillMissingDescriptions() {
+    if (backfilling || !supabase) return;
+    backfilling = true;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      let cursor = '';
+      while (true) {
+        const resp = await fetch(`/api/backfill-descriptions?cursor=${encodeURIComponent(cursor)}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        cursor = data.nextCursor;
+        if (data.done) break;
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      backfilling = false;
+    }
+  }
+
   async function loadUserData() {
     const { count } = await supabase.from('categories').select('*', { count: 'exact', head: true });
     if (!count) await seedDefaultsForNewUser();
 
     await refreshCategories();
     await refreshBookmarks();
+    backfillMissingDescriptions();
 
     realtimeChannels.push(
       supabase.channel('categories-changes')

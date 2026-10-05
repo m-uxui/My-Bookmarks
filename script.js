@@ -342,6 +342,8 @@
       if (!resp.ok) return;
       const { description } = await resp.json();
       pendingDescription = description || '';
+      const titleEl = $('#bookmarkTitle');
+      if (description && !titleEl.value.trim()) titleEl.value = description;
     } catch (e) {
       console.error(e);
     }

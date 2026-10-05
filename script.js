@@ -198,7 +198,7 @@
         </div>
         <div class="card-title">${escapeHtml(title)}</div>
         <div class="card-domain">${escapeHtml(domain)}</div>
-        ${b.description ? `<div class="card-desc">${escapeHtml(b.description)}</div>` : ''}
+        ${b.description ? `<div class="card-desc"><span>${escapeHtml(b.description)}</span></div>` : ''}
         ${(activeCategoryId === 'all' && cat) ? `<span class="card-tag">${escapeHtml(cat.name)}</span>` : ''}
       </a>`;
     }).join('');

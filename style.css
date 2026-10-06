@@ -369,5 +369,5 @@ button, input, select, textarea { font-family: inherit; }
   .category-item { flex-shrink: 0; }
   .add-category-btn { width: auto; margin: 8px 0 0 12px; }
   .content { padding: 18px 14px 40px; }
-  .grid { grid-template-columns: repeat(auto-fill, minmax(164px, 1fr)); gap: 16px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
 }
